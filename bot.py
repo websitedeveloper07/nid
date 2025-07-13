@@ -1,17 +1,18 @@
 import aiohttp
 import asyncio
+import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
-import logging
+from telegram.error import RetryAfter
 
 # === CONFIG ===
-TOKEN = '7622336683:AAFBxrx1hPuG_5ZNY14zQjrxzRgPaS_Jf5A'  # replace with your bot token
+TOKEN = '7981403358:AAGON5Hycw_2UlKfO_mPa_99p7OTHqwnauo'  # Replace with your bot token
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
 BATCH_SIZE = 500
 
 # === GLOBAL STATE ===
 scanning_task = None
-authorized_users = {7796598050}  # <-- Your Telegram user ID (authorized)
+authorized_users = {7796598050}
 scan_status = {
     "active": False,
     "start": None,
@@ -23,6 +24,20 @@ scan_status = {
 
 # === LOGGING ===
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
+
+# === SAFE SEND WRAPPER ===
+send_lock = asyncio.Lock()
+
+async def safe_send(bot, chat_id, text):
+    async with send_lock:
+        try:
+            await bot.send_message(chat_id=chat_id, text=text)
+            await asyncio.sleep(1.1)
+        except RetryAfter as e:
+            print(f"⚠️ Flood control hit. Sleeping for {e.retry_after}s...")
+            await asyncio.sleep(e.retry_after + 1)
+        except Exception as e:
+            print(f"❌ Failed to send message: {e}")
 
 # === AUTH DECORATOR ===
 def auth_required(func):
@@ -121,10 +136,9 @@ async def do_scan(update: Update, msg, start_nid: int, end_nid: int):
                     if title:
                         found += 1
                         scan_status["found"] = found
-                        await update.message.reply_text(f"✅ {title} (NID: {nid})")
+                        await safe_send(update.get_bot(), update.effective_chat.id, f"✅ {title} (NID: {nid})")
                     print(f"{'FOUND' if title else 'NOT FOUND'}: NID {nid}")
 
-                # Update live progress message every ~1000
                 if total % 1000 < BATCH_SIZE:
                     try:
                         await msg.edit_text(
