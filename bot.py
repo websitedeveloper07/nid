@@ -1,6 +1,8 @@
 import aiohttp
 import asyncio
 import logging
+import time
+from collections import deque
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import RetryAfter
@@ -27,12 +29,23 @@ logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
 # === SAFE SEND WRAPPER ===
 send_lock = asyncio.Lock()
+message_times = deque()
 
 async def safe_send(bot, chat_id, text):
     async with send_lock:
         try:
+            now = time.time()
+            message_times.append(now)
+            while message_times and now - message_times[0] > 60:
+                message_times.popleft()
+
+            if len(message_times) >= 19:
+                wait_time = 60 - (now - message_times[0])
+                print(f"⏳ Rate limit: Waiting {wait_time:.1f}s before sending...")
+                await asyncio.sleep(wait_time + 1)
+
             await bot.send_message(chat_id=chat_id, text=text)
-            await asyncio.sleep(1.1)
+            await asyncio.sleep(0.5)
         except RetryAfter as e:
             print(f"⚠️ Flood control hit. Sleeping for {e.retry_after}s...")
             await asyncio.sleep(e.retry_after + 1)
@@ -137,7 +150,8 @@ async def do_scan(update: Update, msg, start_nid: int, end_nid: int):
                         found += 1
                         scan_status["found"] = found
                         await safe_send(update.get_bot(), update.effective_chat.id, f"✅ {title} (NID: {nid})")
-                    print(f"{'FOUND' if title else 'NOT FOUND'}: NID {nid}")
+                    if total % 10 == 0:
+                        print(f"{'FOUND' if title else 'NOT FOUND'}: NID {nid}")
 
                 if total % 1000 < BATCH_SIZE:
                     try:
