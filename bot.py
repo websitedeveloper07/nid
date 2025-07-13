@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import RetryAfter
 
 # === CONFIG ===
-TOKEN = '7981403358:AAGON5Hycw_2UlKfO_mPa_99p7OTHqwnauo'  # Replace with your bot token
+TOKEN = '8134070148:AAFForE3AUaJg4rJdlIaeX_A3AnG-Ld9mmY'  # Replace with your bot token
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
 BATCH_SIZE = 500
 
