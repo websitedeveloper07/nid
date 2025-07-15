@@ -73,8 +73,12 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
         await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
         message = await context.bot.send_message(
             chat_id=chat_id,
-            text=f"🔍 Starting NID search from `{start_nid}` to `{end_nid}`\. Total NIDs to check: `{total_nids}`\.
-Progress: `0` / `{total_nids}` completed\.",
+            text=(
+                f"🔍 Starting NID search from `{start_nid}` to `{end_nid}`\. "
+                f"Total NIDs to check: `{total_nids}`\.
+"
+                f"Progress: `0` / `{total_nids}` completed\."
+            ),
             parse_mode=constants.ParseMode.MARKDOWN_V2
         )
 
@@ -114,14 +118,18 @@ Progress: `0` / `{total_nids}` completed\.",
 
                         await message.edit_text(
                             f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.
-Progress: `{current_checked}` / `{total_nids_val}` completed\.",
+"
+                            f"Progress: `{current_checked}` / `{total_nids_val}` completed\.",
                             parse_mode=constants.ParseMode.MARKDOWN_V2
                         )
                     else:
                         message = await context.bot.send_message(
                             chat_id=chat_id,
-                            text=f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.
-Progress: `{checked_nid_counts[chat_id]}` / `{total_nids}` completed\.",
+                            text=(
+                                f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.
+"
+                                f"Progress: `{checked_nid_counts[chat_id]}` / `{total_nids}` completed\."
+                            ),
                             parse_mode=constants.ParseMode.MARKDOWN_V2
                         )
 
@@ -179,11 +187,9 @@ Example: `/search 4379492956 4379493000`
     )
 
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # (unchanged)
     ...
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # (unchanged)
     ...
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
