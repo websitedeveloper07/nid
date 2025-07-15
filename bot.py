@@ -1,23 +1,21 @@
 import aiohttp
 import asyncio
-import os
 import logging
 from telegram import Update, constants
 from telegram.ext import Application, CommandHandler, ContextTypes
 from collections import defaultdict
-import re  # Import re for regular expressions
-import time  # Added for time estimation
+import re
+import time
 
 # === CONFIG ===
 TOKEN = "8134070148:AAFForE3AUaJg4rJdlIaeX_A3AnG-Ld9mmY"
-OWNER_ID = 7796598050  # <-- Replace with your actual Telegram user ID
+OWNER_ID = 7796598050  # <-- Replace with your Telegram user ID
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
-DEFAULT_BATCH_SIZE = 500  # Default safe value
+DEFAULT_BATCH_SIZE = 500
 
 # === LOGGING ===
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -44,15 +42,11 @@ async def fetch_test_data(session, nid):
                     return nid, escape_markdown_v2(title)
             else:
                 logger.debug(f"API returned status {resp.status} for NID {nid}")
-    except aiohttp.ClientError as e:
-        logger.warning(f"Network error fetching NID {nid}: {e}")
-    except asyncio.TimeoutError:
-        logger.warning(f"Timeout fetching NID {nid}")
     except Exception as e:
-        logger.error(f"Unexpected error fetching NID {nid}: {e}")
+        logger.warning(f"Error fetching NID {nid}: {e}")
     return nid, None
 
-async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size: int, context: ContextTypes.DEFAULT_TYPE):
+async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
     message = None
     total_nids = end_nid - start_nid + 1
     total_nids_to_check[chat_id] = total_nids
@@ -64,9 +58,9 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
         message = await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                f"🔍 Starting NID search from `{start_nid}` to `{end_nid}`\. "
-                f"Total NIDs to check: `{total_nids}`\.\n"
-                f"Progress: `0` / `{total_nids}` completed\."
+                f"🔍 Starting NID search from `{start_nid}` to `{end_nid}`. "
+                f"Total NIDs to check: `{total_nids}`.\n"
+                f"Progress: `0` / `{total_nids}` completed."
             ),
             parse_mode=constants.ParseMode.MARKDOWN_V2
         )
@@ -74,151 +68,122 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
         async with aiohttp.ClientSession() as session:
             for i in range(start_nid, end_nid + 1, batch_size):
                 if chat_id not in ongoing_searches or ongoing_searches[chat_id].done():
-                    logger.info(f"Search for chat {chat_id} cancelled or finished externally.")
-                    await context.bot.send_message(chat_id=chat_id, text="⏹️ Search cancelled\.", parse_mode=constants.ParseMode.MARKDOWN_V2)
+                    await context.bot.send_message(chat_id=chat_id, text="⏹️ Search cancelled.", parse_mode=constants.ParseMode.MARKDOWN_V2)
                     return
 
                 batch_end = min(i + batch_size - 1, end_nid)
-                batch = range(i, batch_end + 1)
-                tasks = [fetch_test_data(session, nid) for nid in batch]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                results = await asyncio.gather(*[fetch_test_data(session, nid) for nid in range(i, batch_end + 1)], return_exceptions=True)
 
-                valid_nids_found_in_batch = []
+                found_batch = []
                 for result in results:
                     if isinstance(result, Exception):
-                        logger.debug(f"Skipping exception in batch: {result}")
                         continue
-
                     nid, title = result
                     checked_nid_counts[chat_id] += 1
                     if title:
                         found_counts[chat_id] += 1
-                        valid_nids_found_in_batch.append(f"✅ Found: {title} \(NID: `{nid}`\)")
-                        logger.info(f"FOUND: NID {nid} - {title}")
+                        found_batch.append(f"✅ Found: {title} (NID: `{nid}`)")
 
-                if valid_nids_found_in_batch:
-                    response_text = "\n".join(valid_nids_found_in_batch)
-                    await context.bot.send_message(chat_id=chat_id, text=response_text, parse_mode=constants.ParseMode.MARKDOWN_V2)
+                if found_batch:
+                    await context.bot.send_message(chat_id=chat_id, text="\n".join(found_batch), parse_mode=constants.ParseMode.MARKDOWN_V2)
 
-                if checked_nid_counts[chat_id] % 500 == 0 or (batch_end == end_nid):
+                if checked_nid_counts[chat_id] % 500 == 0 or batch_end == end_nid:
+                    current = checked_nid_counts[chat_id]
+                    total = total_nids_to_check[chat_id]
                     if message:
-                        current_checked = checked_nid_counts[chat_id]
-                        total_nids_val = total_nids_to_check.get(chat_id, total_nids)
-
                         await message.edit_text(
-                            f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.\n"
-                            f"Progress: `{current_checked}` / `{total_nids_val}` completed\.",
+                            f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`.\n"
+                            f"Progress: `{current}` / `{total}` completed.",
                             parse_mode=constants.ParseMode.MARKDOWN_V2
                         )
-                    else:
-                        message = await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=(
-                                f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.\n"
-                                f"Progress: `{checked_nid_counts[chat_id]}` / `{total_nids}` completed\."
-                            ),
-                            parse_mode=constants.ParseMode.MARKDOWN_V2
-                        )
-
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"✅ Search complete\! Total NIDs checked: `{checked_nid_counts[chat_id]}`\.",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
-        )
-        logger.info(f"Search for chat {chat_id} from {start_nid} to {end_nid} completed.")
-
+        await context.bot.send_message(chat_id=chat_id, text=f"✅ Search complete! Total NIDs checked: `{checked_nid_counts[chat_id]}`.", parse_mode=constants.ParseMode.MARKDOWN_V2)
     except asyncio.CancelledError:
-        await context.bot.send_message(chat_id=chat_id, text="⏹️ Search gracefully cancelled\.", parse_mode=constants.ParseMode.MARKDOWN_V2)
-        logger.info(f"Search task for chat {chat_id} was cancelled.")
+        await context.bot.send_message(chat_id=chat_id, text="⏹️ Search gracefully cancelled.", parse_mode=constants.ParseMode.MARKDOWN_V2)
     except Exception as e:
-        logger.error(f"Error during search for chat {chat_id}: {e}", exc_info=True)
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ An error occurred during the search: `{escape_markdown_v2(str(e))}`", parse_mode=constants.ParseMode.MARKDOWN_V2)
+        await context.bot.send_message(chat_id=chat_id, text=f"❌ Error: `{escape_markdown_v2(str(e))}`", parse_mode=constants.ParseMode.MARKDOWN_V2)
     finally:
-        if chat_id in ongoing_searches:
-            del ongoing_searches[chat_id]
-        if chat_id in checked_nid_counts:
-            del checked_nid_counts[chat_id]
-        if chat_id in total_nids_to_check:
-            del total_nids_to_check[chat_id]
-        if chat_id in start_times:
-            del start_times[chat_id]
-        if chat_id in found_counts:
-            del found_counts[chat_id]
-        if chat_id in search_ranges:
-            del search_ranges[chat_id]
-        if message:
-            try:
-                if "Progress:" in message.text:
-                    final_checked = checked_nid_counts.get(chat_id, 0)
-                    final_total = total_nids_to_check.get(chat_id, total_nids)
-                    await message.edit_text(
-                        f"✅ Search session ended\. Total NIDs checked: `{final_checked}` / `{final_total}`\.",
-                        parse_mode=constants.ParseMode.MARKDOWN_V2
-                    )
-            except Exception as e:
-                logger.warning(f"Could not edit final status message for chat {chat_id}: {e}")
+        for key in [chat_id]:
+            ongoing_searches.pop(key, None)
+            checked_nid_counts.pop(key, None)
+            total_nids_to_check.pop(key, None)
+            start_times.pop(key, None)
+            found_counts.pop(key, None)
+            search_ranges.pop(key, None)
 
 # === Telegram Command Handlers ===
-
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Welcome\! I can help you search for NIDs on Aakash iTutor\.\n\n"
-        "Here are the commands you can use:\n"
-        "• `/search <start_nid> <end_nid>`: Search for NIDs within a specified range\.\n"
-        "Example: `/search 4379492956 4379493000`\n"
-        "• `/cancel`: Stop any ongoing NID search\.\n"
-        "• `/status`: Get the current status of your ongoing search, if any\.\n"
-        "• `/help`: Show this help message again\.",
+        "👋 Welcome! I can help you search for NIDs on Aakash iTutor.\n\n"
+        "• `/search <start_nid> <end_nid> [batch_size]`\n"
+        "• `/cancel`\n"
+        "• `/status`\n"
+        "• `/help`",
         parse_mode=constants.ParseMode.MARKDOWN_V2
     )
 
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
+    logger.info(f"/search called by {update.effective_user.id}, args={context.args}")
+    chat_id = update.effective_chat.id
+
+    if chat_id in ongoing_searches and not ongoing_searches[chat_id].done():
+        await update.message.reply_text("⏳ A search is already running. Use /cancel to stop it.", parse_mode=constants.ParseMode.MARKDOWN_V2)
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: `/search <start_nid> <end_nid> [batch_size]`", parse_mode=constants.ParseMode.MARKDOWN_V2)
+        return
+
+    try:
+        start_nid, end_nid = map(int, context.args[:2])
+        batch_size = int(context.args[2]) if len(context.args) > 2 else DEFAULT_BATCH_SIZE
+        checked_nid_counts[chat_id] = 0
+        total_nids_to_check[chat_id] = end_nid - start_nid + 1
+        ongoing_searches[chat_id] = asyncio.create_task(perform_search(chat_id, start_nid, end_nid, batch_size, context))
+        logger.info(f"Started search for chat {chat_id}: {start_nid}-{end_nid}")
+    except Exception:
+        await update.message.reply_text("❌ Please provide valid integer NIDs and optional batch size.", parse_mode=constants.ParseMode.MARKDOWN_V2)
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
+    chat_id = update.effective_chat.id
+    task = ongoing_searches.get(chat_id)
+    if task and not task.done():
+        task.cancel()
+        await update.message.reply_text("⏹️ Cancelling your search...", parse_mode=constants.ParseMode.MARKDOWN_V2)
+    else:
+        await update.message.reply_text("🔍 No active search to cancel.", parse_mode=constants.ParseMode.MARKDOWN_V2)
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id != OWNER_ID:
+    if update.effective_user.id != OWNER_ID:
         await update.message.reply_text("🚫 Only the bot owner can use this command.", parse_mode=constants.ParseMode.MARKDOWN_V2)
         return
 
-    msg_lines = []
-    active_users = list(ongoing_searches.keys())
-    msg_lines.append(f"📊 *Active Scans:* `{len(active_users)}`")
-
-    for cid in active_users:
-        checked = checked_nid_counts.get(cid, 0)
-        total = total_nids_to_check.get(cid, 0)
-        found = found_counts.get(cid, 0)
-        start_nid, end_nid = search_ranges.get(cid, ("?", "?"))
-        elapsed = time.time() - start_times.get(cid, time.time())
+    tasks = list(ongoing_searches.keys())
+    await update.message.reply_text(f"📊 Active scans: `{len(tasks)}`", parse_mode=constants.ParseMode.MARKDOWN_V2)
+    for chat_id in tasks:
+        checked = checked_nid_counts.get(chat_id, 0)
+        total = total_nids_to_check.get(chat_id, 0)
+        found = found_counts.get(chat_id, 0)
+        s, e = search_ranges.get(chat_id, ("?", "?"))
+        elapsed = time.time() - start_times.get(chat_id, 0)
         rate = checked / elapsed if elapsed > 0 else 0
-        remaining = total - checked
-        eta = remaining / rate if rate > 0 else 0
-
-        msg_lines.append(
-            f"\n🔹 *Scan*\n"
-            f"• From: `{start_nid}`\n"
-            f"• To: `{end_nid}`\n"
-            f"• Current: `{start_nid + checked}`\n"
+        eta = int((total - checked) / rate) if rate > 0 else 0
+        await update.message.reply_text(
+            f"🔹 Range: `{s}`–`{e}`\n"
+            f"• Current: `{s + checked}`\n"
             f"• Checked: `{checked}` / `{total}`\n"
             f"• Found: `{found}`\n"
-            f"• ETA: `{int(eta)}s`")
+            f"• ETA: `{eta}s`",
+            parse_mode=constants.ParseMode.MARKDOWN_V2
+        )
 
-    await update.message.reply_text("\n".join(msg_lines), parse_mode=constants.ParseMode.MARKDOWN_V2)
-
-# === Main function ===
 def main():
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("help", start_command))
-    application.add_handler(CommandHandler("search", search_command))
-    application.add_handler(CommandHandler("cancel", cancel_command))
-    application.add_handler(CommandHandler("status", status_command))
-    logger.info("🚀 Bot is starting...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler(["start", "help"], start_command))
+    app.add_handler(CommandHandler("search", search_command))
+    app.add_handler(CommandHandler("cancel", cancel_command))
+    app.add_handler(CommandHandler("status", status_command))
+    logger.info("🚀 Bot starting...")
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
