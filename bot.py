@@ -5,16 +5,14 @@ import logging
 from telegram import Update, constants
 from telegram.ext import Application, CommandHandler, ContextTypes
 from collections import defaultdict
-import re # Import re for regular expressions
+import re  # Import re for regular expressions
 import time  # Added for time estimation
 
 # === CONFIG ===
-# You MUST replace "YOUR_BOT_TOKEN_HERE" with your actual Telegram Bot Token
 TOKEN = "8134070148:AAFForE3AUaJg4rJdlIaeX_A3AnG-Ld9mmY"
 OWNER_ID = 7796598050  # <-- Replace with your actual Telegram user ID
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
-DEFAULT_BATCH_SIZE = 500 # Default safe value
-# Removed MAX_CONCURRENT_SEARCHES as it's handled implicitly by the per-chat logic.
+DEFAULT_BATCH_SIZE = 500  # Default safe value
 
 # === LOGGING ===
 logging.basicConfig(
@@ -24,23 +22,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # === GLOBAL STATE ===
-# Dictionary to store ongoing search tasks for each chat
 ongoing_searches = {}
-# Dictionary to store checked NID counts for each chat
 checked_nid_counts = defaultdict(int)
-# Dictionary to store total NIDs to check for each chat
 total_nids_to_check = {}
-# Dictionary to track search start times per chat
 start_times = {}
-# Dictionary to track how many tests were found per chat
 found_counts = defaultdict(int)
-# Dictionary to store current starting and ending NIDs
 search_ranges = {}
 
 # === Helper Functions ===
-
 def escape_markdown_v2(text: str) -> str:
-    """Helper function to escape special characters for MarkdownV2."""
     special_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(f"([{re.escape(special_chars)}])", r"\\\1", text)
 
@@ -75,8 +65,7 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
             chat_id=chat_id,
             text=(
                 f"🔍 Starting NID search from `{start_nid}` to `{end_nid}`\. "
-                f"Total NIDs to check: `{total_nids}`\.
-"
+                f"Total NIDs to check: `{total_nids}`\.\n"
                 f"Progress: `0` / `{total_nids}` completed\."
             ),
             parse_mode=constants.ParseMode.MARKDOWN_V2
@@ -117,8 +106,7 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
                         total_nids_val = total_nids_to_check.get(chat_id, total_nids)
 
                         await message.edit_text(
-                            f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.
-"
+                            f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.\n"
                             f"Progress: `{current_checked}` / `{total_nids_val}` completed\.",
                             parse_mode=constants.ParseMode.MARKDOWN_V2
                         )
@@ -126,8 +114,7 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
                         message = await context.bot.send_message(
                             chat_id=chat_id,
                             text=(
-                                f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.
-"
+                                f"🔍 Searching NIDs from `{start_nid}` to `{end_nid}`\.\n"
                                 f"Progress: `{checked_nid_counts[chat_id]}` / `{total_nids}` completed\."
                             ),
                             parse_mode=constants.ParseMode.MARKDOWN_V2
@@ -175,14 +162,13 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Welcome\! I can help you search for NIDs on Aakash iTutor\.
-
-Here are the commands you can use:
-• `/search <start_nid> <end_nid>`: Search for NIDs within a specified range\.
-Example: `/search 4379492956 4379493000`
-• `/cancel`: Stop any ongoing NID search\.
-• `/status`: Get the current status of your ongoing search, if any\.
-• `/help`: Show this help message again\.",
+        "👋 Welcome\! I can help you search for NIDs on Aakash iTutor\.\n\n"
+        "Here are the commands you can use:\n"
+        "• `/search <start_nid> <end_nid>`: Search for NIDs within a specified range\.\n"
+        "Example: `/search 4379492956 4379493000`\n"
+        "• `/cancel`: Stop any ongoing NID search\.\n"
+        "• `/status`: Get the current status of your ongoing search, if any\.\n"
+        "• `/help`: Show this help message again\.",
         parse_mode=constants.ParseMode.MARKDOWN_V2
     )
 
@@ -213,18 +199,17 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         eta = remaining / rate if rate > 0 else 0
 
         msg_lines.append(
-            f"\n🔹 *Scan*
-• From: `{start_nid}`
-• To: `{end_nid}`
-• Current: `{start_nid + checked}`
-• Checked: `{checked}` / `{total}`
-• Found: `{found}`
-• ETA: `{int(eta)}s`")
+            f"\n🔹 *Scan*\n"
+            f"• From: `{start_nid}`\n"
+            f"• To: `{end_nid}`\n"
+            f"• Current: `{start_nid + checked}`\n"
+            f"• Checked: `{checked}` / `{total}`\n"
+            f"• Found: `{found}`\n"
+            f"• ETA: `{int(eta)}s`")
 
     await update.message.reply_text("\n".join(msg_lines), parse_mode=constants.ParseMode.MARKDOWN_V2)
 
 # === Main function ===
-
 def main():
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start_command))
