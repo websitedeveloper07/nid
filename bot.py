@@ -136,22 +136,17 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
             except Exception as e:
                 logger.warning(f"Could not edit final status message for chat {chat_id}: {e}")
 
-# === Telegram Command Handlers ===
-
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
-        await reject_unauthorized(update)
-        return
+    await update.message.reply_text(
+        "👋 Welcome\\! I can help you search for NIDs on Aakash iTutor\\.\n\n"
+        "Here are the commands you can use:\n"
+        "• \\`/search <start_nid> <end_nid>\\`: Search for NIDs within a specified range\\.\n"
+        "• \\`/cancel\\`: Stop any ongoing NID search\\.\n"
+        "• \\`/status\\`: Get the current status of your ongoing search, if any\\.\n"
+        "• \\`/help\\`: Show this help message again\\.",
+        parse_mode=constants.ParseMode.MARKDOWN_V2
+    )
 
-await update.message.reply_text(
-    "👋 Welcome\\! I can help you search for NIDs on Aakash iTutor\\.\n\n"
-    "Here are the commands you can use:\n"
-    "• \\`/search <start_nid> <end_nid>\\`: Search for NIDs within a specified range\\.\n"
-    "• \\`/cancel\\`: Stop any ongoing NID search\\.\n"
-    "• \\`/status\\`: Get the current status of your ongoing search, if any\\.\n"
-    "• \\`/help\\`: Show this help message again\\.",
-    parse_mode=constants.ParseMode.MARKDOWN_V2
-)
 
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update.effective_user.id):
