@@ -29,10 +29,9 @@ total_nids_to_check = {}
 current_nid_tracking = {}  # Track currently processing NID per chat
 
 # === Helper Functions ===
-
 def escape_markdown_v2(text: str) -> str:
     special_chars = r'_*[]()~`>#+-=|{}.!'
-    return re.sub(f"([{re.escape(special_chars)}])", r"\\\1", text)
+    return re.sub(f"([{re.escape(special_chars)}])", r"\\\\\1", text)
 
 def is_authorized(user_id: int) -> bool:
     return user_id in AUTHORIZED_USERS
@@ -138,12 +137,12 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Welcome\\! I can help you search for NIDs on Aakash iTutor\\.\n\n"
+        "\ud83d\udc4b Welcome\\! I can help you search for NIDs on Aakash iTutor\\.\n\n"
         "Here are the commands you can use:\n"
-        "• \\`/search <start_nid> <end_nid>\\`\\: Search for NIDs within a specified range\\.\n"
-        "• \\`/cancel\\`\\: Stop any ongoing NID search\\.\n"
-        "• \\`/status\\`\\: Get the current status of your ongoing search\\, if any\\.\n"
-        "• \\`/help\\`\\: Show this help message again\\.",
+        "\u2022 \`/search <start\\_nid> <end\\_nid>\`\: Search for NIDs within a specified range\\.\n"
+        "\u2022 \`/cancel\`\: Stop any ongoing NID search\\.\n"
+        "\u2022 \`/status\`\: Get the current status of your ongoing search\\, if any\\.\n"
+        "\u2022 \`/help\`\: Show this help message again\\.",
         parse_mode=constants.ParseMode.MARKDOWN_V2
     )
 
