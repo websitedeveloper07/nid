@@ -132,8 +132,8 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "\U0001F44B Welcome! I can help you search for NIDs on Aakash iTutor.<br><br>"
-        "Here are the commands you can use:<br>"
+        "👋 <b>Welcome!</b> I can help you search for NIDs on Aakash iTutor.<br><br>"
+        "<b>Here are the commands you can use:</b><br>"
         "• <code>/search &lt;start_nid&gt; &lt;end_nid&gt;</code>: Search for NIDs within a specified range.<br>"
         "Example: <code>/search 4379492956 4379493000</code><br>"
         "• <code>/cancel</code>: Stop any ongoing NID search.<br>"
@@ -141,6 +141,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• <code>/help</code>: Show this help message again.",
         parse_mode=constants.ParseMode.HTML
     )
+
 
 
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
