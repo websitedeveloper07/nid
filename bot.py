@@ -135,15 +135,15 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
                 logger.warning(f"Could not edit final status message for chat {chat_id}: {e}")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Sends a welcome message and explains available commands."""
     await update.message.reply_text(
-        escape_markdown_v2(
-            "👋 Welcome! I can help you search for NIDs on Aakash iTutor.\n\n"
-            "Here are the commands you can use:\n"
-            "• `/search <start_nid> <end_nid>`: Search for NIDs within a specified range.\n"
-            "• `/cancel`: Stop any ongoing NID search.\n"
-            "• `/status`: Get the current status of your ongoing search, if any.\n"
-            "• `/help`: Show this help message again."
-        ),
+        "👋 Welcome\! I can help you search for NIDs on Aakash iTutor\.\n\n"
+        "Here are the commands you can use:\n"
+        "• `/search <start_nid> <end_nid>`: Search for NIDs within a specified range\. "
+        "Example: `/search 4379492956 4379493000`\n"
+        "• `/cancel`: Stop any ongoing NID search\.\n"
+        "• `/status`: Get the current status of your ongoing search, if any\.\n"
+        "• `/help`: Show this help message again\.",
         parse_mode=constants.ParseMode.MARKDOWN_V2
     )
 
