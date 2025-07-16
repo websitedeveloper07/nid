@@ -143,15 +143,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reject_unauthorized(update)
         return
 
-    await update.message.reply_text(
-        "\ud83d\udc4b Welcome! I can help you search for NIDs on Aakash iTutor.\n\n"
-        "Here are the commands you can use:\n"
-        "\u2022 `/search <start_nid> <end_nid>`: Search for NIDs within a specified range.\n"
-        "\u2022 `/cancel`: Stop any ongoing NID search.\n"
-        "\u2022 `/status`: Get the current status of your ongoing search, if any.\n"
-        "\u2022 `/help`: Show this help message again.",
-        parse_mode=constants.ParseMode.MARKDOWN_V2
-    )
+await update.message.reply_text(
+    "👋 Welcome\\! I can help you search for NIDs on Aakash iTutor\\.\n\n"
+    "Here are the commands you can use:\n"
+    "• \\`/search <start_nid> <end_nid>\\`: Search for NIDs within a specified range\\.\n"
+    "• \\`/cancel\\`: Stop any ongoing NID search\\.\n"
+    "• \\`/status\\`: Get the current status of your ongoing search, if any\\.\n"
+    "• \\`/help\\`: Show this help message again\\.",
+    parse_mode=constants.ParseMode.MARKDOWN_V2
+)
 
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update.effective_user.id):
