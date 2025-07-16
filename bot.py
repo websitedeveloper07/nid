@@ -6,13 +6,22 @@ from telegram import Update, constants
 from telegram.ext import Application, CommandHandler, ContextTypes
 from collections import defaultdict
 import re # Import re for regular expressions
+from datetime import datetime
+import time
 
 # === CONFIG ===
 # You MUST replace "YOUR_BOT_TOKEN_HERE" with your actual Telegram Bot Token
-TOKEN = "7708512334:AAH1yoHCzNAqX1x3pR770o1ARRWwfv3Fddk"
+TOKEN = "7622336683:AAFBxrx1hPuG_5ZNY14zQjrxzRgPaS_Jf5A"
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
 DEFAULT_BATCH_SIZE = 500 # Default safe value
-# Removed MAX_CONCURRENT_SEARCHES as it's handled implicitly by the per-chat logic.
+
+# === AUTHORIZED USERS ===
+# Add the Telegram user IDs of authorized users here
+# You can get your user ID by messaging @userinfobot on Telegram
+AUTHORIZED_USERS = {
+    7796598050,  # Added authorized user
+    # Add more user IDs as needed
+}
 
 # === LOGGING ===
 logging.basicConfig(
@@ -28,8 +37,37 @@ ongoing_searches = {}
 checked_nid_counts = defaultdict(int)
 # Dictionary to store total NIDs to check for each chat
 total_nids_to_check = {}
+# Dictionary to store search start times
+search_start_times = {}
+# Dictionary to store search parameters
+search_parameters = {}
+# Dictionary to store found NIDs count
+found_nids_count = defaultdict(int)
 
 # === Helper Functions ===
+
+def is_authorized_user(update: Update) -> bool:
+    """Check if the user is authorized to use the bot."""
+    user = update.effective_user
+    if not user:
+        return False
+    
+    # Check user ID only
+    return user.id in AUTHORIZED_USERS
+
+def format_time_duration(seconds: int) -> str:
+    """Format seconds into a human-readable duration."""
+    if seconds < 60:
+        return f"{seconds}s"
+    elif seconds < 3600:
+        minutes = seconds // 60
+        remaining_seconds = seconds % 60
+        return f"{minutes}m {remaining_seconds}s"
+    else:
+        hours = seconds // 3600
+        remaining_minutes = (seconds % 3600) // 60
+        remaining_seconds = seconds % 60
+        return f"{hours}h {remaining_minutes}m {remaining_seconds}s"
 
 def escape_markdown_v2(text: str) -> str:
     """Helper function to escape special characters for MarkdownV2."""
@@ -70,6 +108,13 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
     message = None
     total_nids = end_nid - start_nid + 1
     total_nids_to_check[chat_id] = total_nids # Store total for updates
+    search_start_times[chat_id] = time.time()
+    search_parameters[chat_id] = {
+        'start_nid': start_nid,
+        'end_nid': end_nid,
+        'batch_size': batch_size
+    }
+    found_nids_count[chat_id] = 0
 
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
@@ -104,6 +149,7 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
 
                     if title:
                         valid_nids_found_in_batch.append(f"✅ Found: {title} \(NID: `{nid}`\)")
+                        found_nids_count[chat_id] += 1
                         logger.info(f"FOUND: NID {nid} - {title}")
 
                 if valid_nids_found_in_batch:
@@ -132,7 +178,7 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
 
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"✅ Search complete\! Total NIDs checked: `{checked_nid_counts[chat_id]}`\.",
+            text=f"✅ Search complete\! Total NIDs checked: `{checked_nid_counts[chat_id]}`, Found: `{found_nids_count[chat_id]}`\.",
             parse_mode=constants.ParseMode.MARKDOWN_V2
         )
         logger.info(f"Search for chat {chat_id} from {start_nid} to {end_nid} completed.")
@@ -151,6 +197,12 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
             del checked_nid_counts[chat_id]
         if chat_id in total_nids_to_check:
             del total_nids_to_check[chat_id]
+        if chat_id in search_start_times:
+            del search_start_times[chat_id]
+        if chat_id in search_parameters:
+            del search_parameters[chat_id]
+        if chat_id in found_nids_count:
+            del found_nids_count[chat_id]
 
         # Finalize the status message if it exists and hasn't been replaced by a completion/cancellation message
         if message:
@@ -166,13 +218,29 @@ async def perform_search(chat_id: int, start_nid: int, end_nid: int, batch_size:
             except Exception as e:
                 logger.warning(f"Could not edit final status message for chat {chat_id}: {e}")
 
+# === Authorization Decorator ===
+def require_authorization(func):
+    """Decorator to check if user is authorized before executing command."""
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not is_authorized_user(update):
+            user = update.effective_user
+            logger.warning(f"Unauthorized access attempt by user {user.id} (@{user.username})")
+            await update.message.reply_text(
+                "🔒 You are not authorized to use this bot\. Please contact the administrator if you need access\.",
+                parse_mode=constants.ParseMode.MARKDOWN_V2
+            )
+            return
+        return await func(update, context)
+    return wrapper
 
 # === Telegram Command Handlers ===
 
+@require_authorization
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends a welcome message and explains available commands."""
+    user = update.effective_user
     await update.message.reply_text(
-        "👋 Welcome\! I can help you search for NIDs on Aakash iTutor\.\n\n"
+        f"👋 Welcome {escape_markdown_v2(user.first_name or user.username)}\! I can help you search for NIDs on Aakash iTutor\.\n\n"
         "Here are the commands you can use:\n"
         "• `/search <start_nid> <end_nid>`: Search for NIDs within a specified range\. "
         "Example: `/search 4379492956 4379493000`\n"
@@ -182,6 +250,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=constants.ParseMode.MARKDOWN_V2
     )
 
+@require_authorization
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handles the /search command.
@@ -198,7 +267,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "Usage: `/search <start_nid> <end_nid> [batch_size]`\n"
             "Example: `/search 4379492956 4379493000`\n"
-            "The `batch_size` is optional and defaults to 2000\.",
+            "The `batch_size` is optional and defaults to 500\.",
             parse_mode=constants.ParseMode.MARKDOWN_V2
         )
         return
@@ -223,9 +292,9 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Calculate total NIDs for range limit check
         total_range_nids = end_nid - start_nid + 1
-        if total_range_nids > 500000000: # Example limit for range to prevent extremely long scans
+        if total_range_nids > 50000000: # Reduced limit for safety
             await update.message.reply_text(
-                "The requested NID range is too large\. Please specify a range of maximum 500,00000 NIDs at a time\.",
+                "The requested NID range is too large\. Please specify a range of maximum 50,000,000 NIDs at a time\.",
                 parse_mode=constants.ParseMode.MARKDOWN_V2
             )
             return
@@ -233,6 +302,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Start the search as a non-blocking task
         checked_nid_counts[chat_id] = 0 # Reset count for new search
         total_nids_to_check[chat_id] = total_range_nids # Store total for consistent updates
+        found_nids_count[chat_id] = 0 # Reset found count
         task = asyncio.create_task(perform_search(chat_id, start_nid, end_nid, batch_size, context))
         ongoing_searches[chat_id] = task
 
@@ -242,6 +312,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in search_command for chat {chat_id}: {e}", exc_info=True)
         await update.message.reply_text(f"An unexpected error occurred: `{escape_markdown_v2(str(e))}`", parse_mode=constants.ParseMode.MARKDOWN_V2)
 
+@require_authorization
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancels an ongoing NID search for the current chat."""
     chat_id = update.effective_chat.id
@@ -252,16 +323,79 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("You don't have an active NID search to cancel\.", parse_mode=constants.ParseMode.MARKDOWN_V2)
 
+@require_authorization
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Provides the status of the ongoing NID search."""
+    """Provides detailed status of the ongoing NID search."""
     chat_id = update.effective_chat.id
 
     if chat_id in ongoing_searches and not ongoing_searches[chat_id].done():
         checked_count = checked_nid_counts.get(chat_id, 0)
-        total_count = total_nids_to_check.get(chat_id, "N/A") # Get total, or "N/A" if not set
-        await update.message.reply_text(f"🔍 An NID search is currently active\. Checked `{checked_count}` / `{total_count}` NIDs so far\.", parse_mode=constants.ParseMode.MARKDOWN_V2)
+        total_count = total_nids_to_check.get(chat_id, 0)
+        found_count = found_nids_count.get(chat_id, 0)
+        start_time = search_start_times.get(chat_id, time.time())
+        search_params = search_parameters.get(chat_id, {})
+        
+        # Calculate elapsed time
+        elapsed_seconds = int(time.time() - start_time)
+        elapsed_formatted = format_time_duration(elapsed_seconds)
+        
+        # Calculate progress percentage
+        progress_percentage = (checked_count / total_count * 100) if total_count > 0 else 0
+        
+        # Calculate estimated time remaining
+        if checked_count > 0:
+            rate_per_second = checked_count / elapsed_seconds if elapsed_seconds > 0 else 0
+            remaining_nids = total_count - checked_count
+            estimated_remaining_seconds = int(remaining_nids / rate_per_second) if rate_per_second > 0 else 0
+            eta_formatted = format_time_duration(estimated_remaining_seconds)
+        else:
+            rate_per_second = 0
+            eta_formatted = "Calculating..."
+        
+        # Calculate success rate
+        success_rate = (found_count / checked_count * 100) if checked_count > 0 else 0
+        
+        status_text = (
+            f"📊 **Search Status Report**\n\n"
+            f"🔍 **Range**: `{search_params.get('start_nid', 'N/A')}` to `{search_params.get('end_nid', 'N/A')}`\n"
+            f"⚙️ **Batch Size**: `{search_params.get('batch_size', 'N/A')}`\n\n"
+            f"📈 **Progress**: `{checked_count:,}` / `{total_count:,}` \(`{progress_percentage:.1f}%`\)\n"
+            f"✅ **Found**: `{found_count:,}` NIDs \(`{success_rate:.2f}%` success rate\)\n"
+            f"⏱️ **Elapsed Time**: `{elapsed_formatted}`\n"
+            f"🚀 **Speed**: `{rate_per_second:.1f}` NIDs/second\n"
+            f"⏳ **ETA**: `{eta_formatted}`\n\n"
+            f"🔄 **Status**: Active and running\.\.\."
+        )
+        
+        await update.message.reply_text(status_text, parse_mode=constants.ParseMode.MARKDOWN_V2)
     else:
         await update.message.reply_text("No active NID search found for your chat\.", parse_mode=constants.ParseMode.MARKDOWN_V2)
+
+# === Admin Commands ===
+
+@require_authorization
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show admin information and authorized users."""
+    user = update.effective_user
+    
+    # Check if user is in authorized users (additional check for admin commands)
+    if user.id not in AUTHORIZED_USERS:
+        await update.message.reply_text("🔒 Admin access denied\.", parse_mode=constants.ParseMode.MARKDOWN_V2)
+        return
+    
+    active_searches = len(ongoing_searches)
+    
+    status_text = (
+        f"👑 **Admin Panel**\n\n"
+        f"🔑 **Authorized Users**: `{len(AUTHORIZED_USERS)}`\n"
+        f"🔍 **Active Searches**: `{active_searches}`\n\n"
+        f"📝 **Your Info**:\n"
+        f"• ID: `{user.id}`\n"
+        f"• Username: `{user.username or 'N/A'}`\n"
+        f"• Name: `{escape_markdown_v2(user.first_name or 'N/A')}`"
+    )
+    
+    await update.message.reply_text(status_text, parse_mode=constants.ParseMode.MARKDOWN_V2)
 
 # === Main function ===
 def main():
@@ -274,8 +408,10 @@ def main():
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("cancel", cancel_command))
     application.add_handler(CommandHandler("status", status_command))
+    application.add_handler(CommandHandler("admin", admin_command))
 
     logger.info("🚀 Bot is starting...")
+    logger.info(f"📋 Authorized users: {len(AUTHORIZED_USERS)} user IDs")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
