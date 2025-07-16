@@ -292,7 +292,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Calculate total NIDs for range limit check
         total_range_nids = end_nid - start_nid + 1
-        if total_range_nids > 50000000: # Reduced limit for safety
+        if total_range_nids > 500000000: # Reduced limit for safety
             await update.message.reply_text(
                 "The requested NID range is too large\. Please specify a range of maximum 50,000,000 NIDs at a time\.",
                 parse_mode=constants.ParseMode.MARKDOWN_V2
