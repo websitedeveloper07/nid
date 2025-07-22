@@ -45,7 +45,12 @@ async def fetch_test_data(session, nid):
                 data = await resp.json()
                 if isinstance(data, list) and data:
                     title = data[0].get("title", "No Title")
+                    logger.info(f"✅ FOUND: NID {nid} - {title}")
                     return nid, escape_markdown_v2(title)
+                else:
+                    logger.info(f"❌ NOT FOUND: NID {nid}")
+            else:
+                logger.warning(f"API error for NID {nid} with status code {resp.status}")
     except Exception as e:
         logger.warning(f"Error fetching NID {nid}: {e}")
     return nid, None
@@ -78,6 +83,7 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
                 found_messages = []
                 for result in results:
                     if isinstance(result, Exception):
+                        logger.error(f"❌ Error in batch: {result}")
                         continue
                     nid, title = result
                     checked_nid_counts[chat_id] += 1
@@ -95,7 +101,7 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
     except asyncio.CancelledError:
         await safe_send(context.bot.send_message, chat_id=chat_id, text="⏹️ Search gracefully cancelled\.", parse_mode=constants.ParseMode.MARKDOWN_V2)
     except Exception as e:
-        logger.error(f"Error in perform_search: {e}")
+        logger.error(f"❌ Error in perform_search: {e}", exc_info=True)
         await safe_send(context.bot.send_message, chat_id=chat_id, text=f"❌ Error: `{escape_markdown_v2(str(e))}`", parse_mode=constants.ParseMode.MARKDOWN_V2)
     finally:
         ongoing_searches.pop(chat_id, None)
