@@ -8,16 +8,13 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import RetryAfter, TelegramError
 
 # === CONFIG ===
-TOKEN = "8380598059:AAFD7pALzpCBo-qXNTizUWnSQE9tFNSi8h4"  # Replace with your actual bot token
-OWNER_ID = 7796598050          # Replace with your actual Telegram user ID
+TOKEN = "8380598059:AAFD7pALzpCBo-qXNTizUWnSQE9tFNSi8h4"         # Replace with your actual bot token
+OWNER_ID = 7796598050                  # Replace with your Telegram numeric user ID
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
 DEFAULT_BATCH_SIZE = 1000
 
 # === LOGGING ===
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # === GLOBAL STATE ===
@@ -27,7 +24,7 @@ total_nids_to_check = {}
 
 # === HELPERS ===
 def escape_markdown_v2(text: str) -> str:
-    return re.sub(r'([_*[\]()~`>#+=|{}.!\\-])', r'\\\1', text)
+    return re.sub(r'([_*\[\]()~`>#+=|{}.!\\-])', r'\\\1', text)
 
 async def safe_send(bot_method, *args, **kwargs):
     try:
@@ -73,7 +70,7 @@ def owner_only(func):
 @owner_only
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await safe_send(update.message.reply_text,
-        "👋 Welcome, owner!\nUse `/search <start> <end> [batch_size]` to begin.",
+        "👋 Welcome, owner\\!\nUse `/search <start> <end> [batch_size]` to begin.",
         parse_mode=constants.ParseMode.MARKDOWN_V2)
 
 @owner_only
@@ -128,11 +125,9 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await safe_send(update.message.reply_text, "⚠️ Start NID must be less than or equal to End NID.")
             return
 
-        # Reset tracking
         checked_nid_counts[chat_id] = 0
         total_nids_to_check[chat_id] = end_nid - start_nid + 1
 
-        # Start search
         task = asyncio.create_task(
             perform_search(chat_id, start_nid, end_nid, batch_size, context)
         )
@@ -176,14 +171,13 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
                     await safe_send(context.bot.send_message, chat_id=chat_id,
                                     text="\n".join(found_msgs), parse_mode=constants.ParseMode.MARKDOWN_V2)
 
-                # Optional: status update after every 1000
                 if checked_nid_counts[chat_id] % 1000 == 0:
                     await safe_send(intro_msg.edit_text,
                         text=f"🔄 Progress: `{checked_nid_counts[chat_id]}` / `{total}`",
                         parse_mode=constants.ParseMode.MARKDOWN_V2)
 
         await safe_send(context.bot.send_message, chat_id=chat_id,
-            text=f"✅ Done! Checked `{checked_nid_counts[chat_id]}` NIDs.",
+            text=f"✅ Done\\! Checked `{checked_nid_counts[chat_id]}` NIDs.",
             parse_mode=constants.ParseMode.MARKDOWN_V2)
 
     finally:
