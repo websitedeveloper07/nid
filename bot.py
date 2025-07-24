@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import RetryAfter, TelegramError
 
 # === CONFIG ===
-TOKEN = "7981403358:AAGON5Hycw_2UlKfO_mPa_99p7OTHqwnauo"  # Replace with your actual bot token
+TOKEN = "8380598059:AAFD7pALzpCBo-qXNTizUWnSQE9tFNSi8h4"  # Replace with your actual bot token
 OWNER_ID = 7796598050          # Replace with your actual Telegram user ID
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
 DEFAULT_BATCH_SIZE = 1000
