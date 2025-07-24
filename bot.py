@@ -2,13 +2,16 @@ import aiohttp
 import asyncio
 import logging
 import re
+import os # Import the os module to access environment variables
 from collections import defaultdict
 from telegram import Update, constants
 from telegram.ext import Application, CommandHandler, ContextTypes, filters
 from telegram.error import RetryAfter, TelegramError
 
 # === CONFIG ===
-TOKEN = "8380598059:AAFD7pALzpCBo-qXNTizUWQc9tFNSi8h4"      # Replace with your actual bot token
+# Read the bot token from the environment variable 'BOT_TOKEN'
+# Ensure you set this variable in your Railway project settings!
+TOKEN = os.getenv("BOT_TOKEN")
 OWNER_ID = 7796598050         # Replace with your Telegram numeric user ID
 API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
 DEFAULT_BATCH_SIZE = 1000
@@ -231,6 +234,11 @@ async def unauthorized_command(update: Update, context: ContextTypes.DEFAULT_TYP
 # === MAIN ===
 def main():
     """Starts the bot."""
+    # Check if the token environment variable is set
+    if not TOKEN:
+        logger.error("🚫 BOT_TOKEN environment variable not set. Please set it in your Railway project settings or locally.")
+        return # Exit if the token is not found
+
     app = Application.builder().token(TOKEN).build()
 
     # Define a filter for the owner's user ID
