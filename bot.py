@@ -77,18 +77,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends a welcome message to the owner."""
     await safe_send(
         update.message.reply_text,
-        "👋 Welcome, owner!<br>Use <code>/search &lt;start&gt; &lt;end&gt; [batch_size]</code> to begin.",
+        "👋 Welcome, owner!\nUse <code>/search &lt;start&gt; &lt;end&gt; [batch_size]</code> to begin.",
         parse_mode=constants.ParseMode.HTML
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends the help message."""
     help_text = (
-        "📌 <b>Bot Commands</b><br>"
-        "/start – Welcome message<br>"
-        "/search &lt;start&gt; &lt;end&gt; [batch_size] – Start scanning NIDs<br>"
-        "/cancel – Stop ongoing scan<br>"
-        "/status – Show scan progress<br>"
+        "📌 <b>Bot Commands</b>\n"
+        "/start – Welcome message\n"
+        "/search &lt;start&gt; &lt;end&gt; [batch_size] – Start scanning NIDs\n"
+        "/cancel – Stop ongoing scan\n"
+        "/status – Show scan progress\n"
         "/help – Show this help"
     )
     await safe_send(
@@ -96,6 +96,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         help_text,
         parse_mode=constants.ParseMode.HTML
     )
+
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
