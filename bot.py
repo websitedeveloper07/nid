@@ -232,36 +232,35 @@ async def unauthorized_command(update: Update, context: ContextTypes.DEFAULT_TYP
                     parse_mode=constants.ParseMode.MARKDOWN_V2)
 
 # === MAIN ===
+from telegram.request import HTTPXRequest
+
 def main():
     """Starts the bot."""
-    # Check if the token environment variable is set
     if not TOKEN:
-        logger.error("🚫 BOT_TOKEN environment variable not set. Please set it in your Railway project settings or locally.")
-        return # Exit if the token is not found
+        logger.error("🚫 BOT_TOKEN environment variable not set.")
+        return
 
-    app = Application.builder().token(TOKEN).build()
+    # ✅ Custom request with longer timeouts
+    request = HTTPXRequest(connect_timeout=20.0, read_timeout=20.0, pool_timeout=20.0)
 
-    # Define a filter for the owner's user ID
+    app = Application.builder().token(TOKEN).request(request).build()
+
+    # Owner filter
     owner_filter = filters.User(user_id=OWNER_ID)
 
-    # Handlers for the owner (these will only respond to the OWNER_ID)
+    # Handlers for owner
     app.add_handler(CommandHandler("start", start, filters=owner_filter))
     app.add_handler(CommandHandler("help", help_command, filters=owner_filter))
     app.add_handler(CommandHandler("search", search, filters=owner_filter))
     app.add_handler(CommandHandler("cancel", cancel, filters=owner_filter))
     app.add_handler(CommandHandler("status", status, filters=owner_filter))
 
-    # Handler for any command (specified in the list) from non-owner users.
-    # The ~ operator inverts the filter, meaning "if NOT owner_filter".
-    # This handler must be added AFTER the owner_filter handlers for the same commands.
+    # Handlers for unauthorized users
     app.add_handler(CommandHandler(
-        ["start", "help", "search", "cancel", "status"], # Commands to catch if not owner
+        ["start", "help", "search", "cancel", "status"],
         unauthorized_command,
-        ~owner_filter # Only trigger if the user is NOT the owner
+        ~owner_filter
     ))
 
     logger.info(f"🚀 Bot started for Owner ID: {OWNER_ID}")
-    app.run_polling(drop_pending_updates=True) # drop_pending_updates is good practice on startup
-
-if __name__ == "__main__":
-    main()
+    app.run_polling(drop_pending_updates=True)
