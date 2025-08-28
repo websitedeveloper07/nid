@@ -69,26 +69,34 @@ async def fetch_test_data(session, nid):
         logger.error(f"❌ Unexpected error fetching NID {nid}: {e}")
     return nid, None
 
+from telegram import Update, constants
+from telegram.ext import ContextTypes
+
 # === COMMANDS (No direct decorators needed here, filters applied in main) ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends a welcome message to the owner."""
     await safe_send(
         update.message.reply_text,
-        "👋 Welcome, owner\\!\nUse /search <start> <end> [batch_size] to begin\\.",
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        "👋 Welcome, owner!<br>Use <code>/search &lt;start&gt; &lt;end&gt; [batch_size]</code> to begin.",
+        parse_mode=constants.ParseMode.HTML
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends the help message."""
     help_text = (
-        "📌 *Bot Commands*\n"
-        "/start \\- Welcome message\n"
-        "/search <start> <end> [batch_size] \\- Start scanning NIDs\n"
-        "/cancel \\- Stop ongoing scan\n"
-        "/status \\- Show scan progress\n"
-        "/help \\- Show this help"
+        "📌 <b>Bot Commands</b><br>"
+        "/start – Welcome message<br>"
+        "/search &lt;start&gt; &lt;end&gt; [batch_size] – Start scanning NIDs<br>"
+        "/cancel – Stop ongoing scan<br>"
+        "/status – Show scan progress<br>"
+        "/help – Show this help"
     )
-    await safe_send(update.message.reply_text, help_text, parse_mode=constants.ParseMode.MARKDOWN_V2)
+    await safe_send(
+        update.message.reply_text,
+        help_text,
+        parse_mode=constants.ParseMode.HTML
+    )
+
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Shows the current scan progress."""
