@@ -572,9 +572,12 @@ def main():
     # Define a filter for the owner's user ID
     owner_filter = filters.User(user_id=OWNER_ID)
     
-    # Define a filter for authorized users (owner + explicitly authorized users)
-    def authorized_filter(update, context):
-        return update.effective_user.id == OWNER_ID or update.effective_user.id in authorized_users
+    # Create a custom filter class for authorized users
+    class AuthorizedFilter(filters.BaseFilter):
+        def filter(self, update):
+            return update.effective_user.id == OWNER_ID or update.effective_user.id in authorized_users
+    
+    authorized_filter = AuthorizedFilter()
     
     # Handlers for the owner (these will only respond to the OWNER_ID)
     app.add_handler(CommandHandler("start", start, filters=owner_filter))
