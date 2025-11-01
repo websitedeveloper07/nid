@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import logging
-import re
 import os  # Import the os module to access environment variables
 from collections import defaultdict
 from telegram import Update, constants, InlineKeyboardButton, InlineKeyboardMarkup
@@ -17,10 +16,6 @@ API_URL = "https://learn.aakashitutor.com/api/getquizfromid?nid="
 DEFAULT_BATCH_SIZE = 1000
 MAX_CONCURRENT_REQUESTS = 50  # Limit concurrent API requests to prevent overwhelming the server
 
-# === LOGGING ===
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # === GLOBAL STATE ===
 ongoing_searches = {}  # chat_id -> task
 checked_nid_counts = defaultdict(int)  # chat_id -> count
@@ -28,13 +23,11 @@ total_nids_to_check = {}  # chat_id -> total
 authorized_users = set()  # Set to store authorized user IDs
 user_progress_messages = {}  # chat_id -> message_id
 
-# === HELPERS ===
-def escape_markdown_v2(text: str) -> str:
-    """Escapes characters in a string that have special meaning in MarkdownV2."""
-    # List of special characters in MarkdownV2 that need to be escaped
-    # _ * [ ] ( ) ~ ` > # + - = | { } . ! \
-    return re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
+# === LOGGING ===
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+# === HELPERS ===
 async def safe_send(bot_method, *args, **kwargs):
     """ Safely sends a message, handling Telegram's flood control and other errors. """
     try:
@@ -59,8 +52,7 @@ async def fetch_test_data(session, nid, semaphore):
                     if isinstance(data, list) and data and isinstance(data[0], dict):
                         title = data[0].get("title", "No Title")
                         logger.info(f"✅ FOUND: NID {nid} - {title}")
-                        # Escape title before returning to ensure it's safe for MarkdownV2
-                        return nid, escape_markdown_v2(title)
+                        return nid, title
                     else:
                         logger.info(f"❌ NOT FOUND: NID {nid} - API returned non-list or empty data")
                 else:
@@ -79,16 +71,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     is_owner = user_id == OWNER_ID
     welcome_text = (
-        f"👋 Welcome, {escape_markdown_v2(update.effective_user.first_name)}\\!\n\n"
-        "Use `/search <start> <end> \\[batch_size\\]` to begin scanning NIDs\\.\n\n"
-        f"{'🔑 You are the bot owner\\.\n' if is_owner else ''}"
-        "Use `/help` to see all available commands\\.\n\n"
-        "BOT BY \\- kคli liຖนxx"
+        f"👋 Welcome, {update.effective_user.first_name}!\n\n"
+        "Use <code>/search &lt;start&gt; &lt;end&gt; [batch_size]</code> to begin scanning NIDs.\n\n"
+        f"{'🔑 You are the bot owner.\n' if is_owner else ''}"
+        "Use <code>/help</code> to see all available commands.\n\n"
+        "BOT BY - kคli liຖนxx"
     )
     await safe_send(
         update.message.reply_text,
         welcome_text,
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        parse_mode=constants.ParseMode.HTML
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -97,10 +89,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_owner = user_id == OWNER_ID
     
     help_text = (
-        "📌 *Bot Commands*\n\n"
-        "🔹 *User Commands*\n"
+        "📌 <b>Bot Commands</b>\n\n"
+        "🔹 <b>User Commands</b>\n"
         "/start – Welcome message\n"
-        "/search <start> <end> \\[batch_size\\] – Start scanning NIDs\n"
+        "/search &lt;start&gt; &lt;end&gt; [batch_size] – Start scanning NIDs\n"
         "/cancel – Stop ongoing scan\n"
         "/status – Show scan progress and authorized users\n"
         "/help – Show this help\n"
@@ -109,18 +101,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if is_owner:
         help_text += (
-            "🔹 *Admin Commands*\n"
-            "/au \\{user_id\\} – Authorize a user\n"
-            "/ru \\{user_id\\} – Revoke user authorization\n"
+            "🔹 <b>Admin Commands</b>\n"
+            "/au {user_id} – Authorize a user\n"
+            "/ru {user_id} – Revoke user authorization\n"
             "/list – List all authorized users\n\n"
         )
     
-    help_text += "BOT BY \\- kคli liຖนxx"
+    help_text += "BOT BY - kคli liຖนxx"
     
     await safe_send(
         update.message.reply_text,
         help_text,
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        parse_mode=constants.ParseMode.HTML
     )
 
 async def listall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -129,10 +121,10 @@ async def listall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_owner = user_id == OWNER_ID
     
     listall_text = (
-        "📋 *All Bot Commands*\n\n"
-        "🔹 *User Commands*\n"
+        "📋 <b>All Bot Commands</b>\n\n"
+        "🔹 <b>User Commands</b>\n"
         "/start – Welcome message\n"
-        "/search <start> <end> \\[batch_size\\] – Start scanning NIDs\n"
+        "/search &lt;start&gt; &lt;end&gt; [batch_size] – Start scanning NIDs\n"
         "/cancel – Stop ongoing scan\n"
         "/status – Show scan progress and authorized users\n"
         "/help – Show help message\n"
@@ -141,39 +133,39 @@ async def listall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if is_owner:
         listall_text += (
-            "🔹 *Admin Commands*\n"
-            "/au \\{user_id\\} – Authorize a user\n"
-            "/ru \\{user_id\\} – Revoke user authorization\n"
+            "🔹 <b>Admin Commands</b>\n"
+            "/au {user_id} – Authorize a user\n"
+            "/ru {user_id} – Revoke user authorization\n"
             "/list – List all authorized users\n\n"
         )
     
-    listall_text += "BOT BY \\- kคli liຖนxx"
+    listall_text += "BOT BY - kคli liຖนxx"
     
     await safe_send(
         update.message.reply_text,
         listall_text,
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        parse_mode=constants.ParseMode.HTML
     )
 
 async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Shows all admin commands."""
     admin_text = (
-        "🔧 *Admin Commands*\n\n"
-        "/au \\{user_id\\} – Authorize a user to use the bot\n"
-        "/ru \\{user_id\\} – Revoke user authorization\n"
+        "🔧 <b>Admin Commands</b>\n\n"
+        "/au {user_id} – Authorize a user to use the bot\n"
+        "/ru {user_id} – Revoke user authorization\n"
         "/list – List all authorized users\n"
-        "/search <start> <end> \\[batch_size\\] – Start scanning NIDs\n"
+        "/search &lt;start&gt; &lt;end&gt; [batch_size] – Start scanning NIDs\n"
         "/cancel – Stop ongoing scan\n"
         "/status – Show scan progress and authorized users\n"
         "/admin – Show this admin command list\n"
         "/help – Show the general help message\n"
         "/listall – List all bot commands\n\n"
-        "BOT BY \\- kคli liຖนxx"
+        "BOT BY - kคli liຖนxx"
     )
     await safe_send(
         update.message.reply_text,
         admin_text,
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        parse_mode=constants.ParseMode.HTML
     )
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -189,35 +181,35 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         progress_bar = "█" * int(progress_percent / 5) + "░" * (20 - int(progress_percent / 5))
         
         status_text = (
-            f"🔄 *Current Scan Status*\n\n"
+            f"🔄 <b>Current Scan Status</b>\n\n"
             f"{progress_bar} {progress_percent}%\n"
-            f"📈 *Checked*: {current} / {total}\n"
-            f"🏃 *Status*: Running\n\n"
+            f"📈 <b>Checked</b>: {current} / {total}\n"
+            f"🏃 <b>Status</b>: Running\n\n"
         )
     else:
         status_text = (
-            f"ℹ️ *No active scan running*\n\n"
+            f"ℹ️ <b>No active scan running</b>\n\n"
         )
     
     # Add authorized users information
     if is_owner:
         status_text += (
-            f"🔑 *Authorized Users*\n"
-            f"• Owner: `{OWNER_ID}`\n"
+            f"🔑 <b>Authorized Users</b>\n"
+            f"• Owner: <code>{OWNER_ID}</code>\n"
         )
         
         if authorized_users:
             for user in sorted(authorized_users):
-                status_text += f"• `{user}`\n"
+                status_text += f"• <code>{user}</code>\n"
         else:
             status_text += "• No additional authorized users\n"
     
-    status_text += "\nBOT BY \\- kคli liຖนxx"
+    status_text += "\nBOT BY - kคli liຖนxx"
     
     await safe_send(
         update.message.reply_text,
         status_text,
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        parse_mode=constants.ParseMode.HTML
     )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -235,14 +227,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await safe_send(
             update.message.reply_text,
-            "🛑 Scan cancelled\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "🛑 Scan cancelled.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
     else:
         await safe_send(
             update.message.reply_text,
-            "ℹ️ No active scan to cancel\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "ℹ️ No active scan to cancel.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
 
 async def authorize_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -250,8 +242,8 @@ async def authorize_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 1:
         await safe_send(
             update.message.reply_text,
-            "❗ Usage: /au <user_id>\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "❗ Usage: /au <user_id>\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
         return
     
@@ -260,15 +252,15 @@ async def authorize_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         authorized_users.add(user_id)
         await safe_send(
             update.message.reply_text,
-            f"✅ User {user_id} has been authorized to use the bot\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            f"✅ User {user_id} has been authorized to use the bot.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
         logger.info(f"User {user_id} authorized by owner {update.effective_user.id}")
     except ValueError:
         await safe_send(
             update.message.reply_text,
-            "❗ Invalid user ID\\. Please use a numeric ID\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "❗ Invalid user ID. Please use a numeric ID.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
 
 async def revoke_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -276,8 +268,8 @@ async def revoke_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 1:
         await safe_send(
             update.message.reply_text,
-            "❗ Usage: /ru <user_id>\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "❗ Usage: /ru <user_id>\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
         return
     
@@ -287,21 +279,21 @@ async def revoke_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             authorized_users.remove(user_id)
             await safe_send(
                 update.message.reply_text,
-                f"🚫 User {user_id} authorization has been revoked\\.\n\nBOT BY \\- kคli liຖนxx",
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                f"🚫 User {user_id} authorization has been revoked.\n\nBOT BY - kคli liຖนxx",
+                parse_mode=constants.ParseMode.HTML
             )
             logger.info(f"User {user_id} authorization revoked by owner {update.effective_user.id}")
         else:
             await safe_send(
                 update.message.reply_text,
-                f"⚠️ User {user_id} was not in the authorized list\\.\n\nBOT BY \\- kคli liຖนxx",
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                f"⚠️ User {user_id} was not in the authorized list.\n\nBOT BY - kคli liຖนxx",
+                parse_mode=constants.ParseMode.HTML
             )
     except ValueError:
         await safe_send(
             update.message.reply_text,
-            "❗ Invalid user ID\\. Please use a numeric ID\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "❗ Invalid user ID. Please use a numeric ID.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
 
 async def list_authorized(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -309,16 +301,16 @@ async def list_authorized(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not authorized_users:
         await safe_send(
             update.message.reply_text,
-            "📋 No additional users are authorized\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "📋 No additional users are authorized.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
         return
     
-    user_list = "\n".join([f"• `{user_id}`" for user_id in sorted(authorized_users)])
+    user_list = "\n".join([f"• <code>{user_id}</code>" for user_id in sorted(authorized_users)])
     await safe_send(
         update.message.reply_text,
-        f"📋 Authorized users:\n{user_list}\n\nBOT BY \\- kคli liຖนxx",
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        f"📋 Authorized users:\n{user_list}\n\nBOT BY - kคli liຖนxx",
+        parse_mode=constants.ParseMode.HTML
     )
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -329,8 +321,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(args) < 2:
         await safe_send(
             update.message.reply_text,
-            "❗ Usage: /search <start_nid> <end_nid> \\[batch_size\\]\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "❗ Usage: /search <start_nid> <end_nid> [batch_size]\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
         return
     
@@ -342,16 +334,16 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if start_nid <= 0 or end_nid <= 0:
             await safe_send(
                 update.message.reply_text,
-                "⚠️ NID values must be positive integers\\.\n\nBOT BY \\- kคli liຖนxx",
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                "⚠️ NID values must be positive integers.\n\nBOT BY - kคli liຖนxx",
+                parse_mode=constants.ParseMode.HTML
             )
             return
         
         if start_nid > end_nid:
             await safe_send(
                 update.message.reply_text,
-                "⚠️ Start NID must be less than or equal to End NID\\.\n\nBOT BY \\- kคli liຖนxx",
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                "⚠️ Start NID must be less than or equal to End NID.\n\nBOT BY - kคli liຖนxx",
+                parse_mode=constants.ParseMode.HTML
             )
             return
         
@@ -359,8 +351,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if chat_id in ongoing_searches and not ongoing_searches[chat_id].done():
             await safe_send(
                 update.message.reply_text,
-                "⏳ A scan is already running\\. Use /cancel to stop it\\.\n\nBOT BY \\- kคli liຖนxx",
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                "⏳ A scan is already running. Use /cancel to stop it.\n\nBOT BY - kคli liຖนxx",
+                parse_mode=constants.ParseMode.HTML
             )
             return
         
@@ -380,8 +372,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await safe_send(
             update.message.reply_text,
-            "❗ Invalid NID or batch size\\. Please use integers\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            "❗ Invalid NID or batch size. Please use integers.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
 
 # === SEARCH TASK ===
@@ -406,8 +398,8 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
     intro_msg = await safe_send(
         context.bot.send_message,
         chat_id=chat_id,
-        text=f"🔍 *Scan Initiated*\n\n📚 *Scanning Range*: {start_nid} to {end_nid}\n📊 *Total NIDs*: {total}\n📦 *Batch Size*: {batch_size}\n\n⏳ *Status*: Initializing...\n\nBOT BY \\- kคli liຖนxx",
-        parse_mode=constants.ParseMode.MARKDOWN_V2,
+        text=f"🔍 <b>Scan Initiated</b>\n\n📚 <b>Scanning Range</b>: {start_nid} to {end_nid}\n📊 <b>Total NIDs</b>: {total}\n📦 <b>Batch Size</b>: {batch_size}\n\n⏳ <b>Status</b>: Initializing...\n\nBOT BY - kคli liຖนxx",
+        parse_mode=constants.ParseMode.HTML,
         reply_markup=reply_markup
     )
     
@@ -425,8 +417,8 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
                     await safe_send(
                         context.bot.send_message,
                         chat_id=chat_id,
-                        text="🛑 Scan cancelled by user\\.\n\nBOT BY \\- kคli liຖนxx",
-                        parse_mode=constants.ParseMode.MARKDOWN_V2
+                        text="🛑 Scan cancelled by user.\n\nBOT BY - kคli liຖนxx",
+                        parse_mode=constants.ParseMode.HTML
                     )
                     return
                 
@@ -457,17 +449,17 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
                     # Create a message for each found item with enhanced UI
                     for nid, title in found_items:
                         item_msg = (
-                            f"🎯 *NID Found*\n\n"
-                            f"📝 *Title*: {title}\n"
-                            f"🆔 *ID*: `{nid}`\n\n"
+                            f"🎯 <b>NID Found</b>\n\n"
+                            f"📝 <b>Title</b>: {title}\n"
+                            f"🆔 <b>ID</b>: <code>{nid}</code>\n\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n\n"
-                            f"BOT BY \\- kคli liຖนxx"
+                            f"BOT BY - kคli liຖนxx"
                         )
                         await safe_send(
                             context.bot.send_message,
                             chat_id=chat_id,
                             text=item_msg,
-                            parse_mode=constants.ParseMode.MARKDOWN_V2
+                            parse_mode=constants.ParseMode.HTML
                         )
                 else:
                     logger.info(f"No results found in batch starting from {i}")
@@ -492,14 +484,14 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
                                 context.bot.edit_message_text,
                                 chat_id=chat_id,
                                 message_id=user_progress_messages[chat_id],
-                                text=f"🔍 *Scan In Progress*\n\n"
-                                     f"📚 *Scanning Range*: {start_nid} to {end_nid}\n"
-                                     f"📊 *Progress*: {progress_bar} {progress_percent}%\n"
-                                     f"📈 *Checked*: {checked_nid_counts[chat_id]} / {total}\n"
-                                     f"📦 *Batch Size*: {batch_size}\n\n"
-                                     f"⏳ *Status*: Scanning...\n\n"
-                                     f"BOT BY \\- kคli liຖนxx",
-                                parse_mode=constants.ParseMode.MARKDOWN_V2,
+                                text=f"🔍 <b>Scan In Progress</b>\n\n"
+                                     f"📚 <b>Scanning Range</b>: {start_nid} to {end_nid}\n"
+                                     f"📊 <b>Progress</b>: {progress_bar} {progress_percent}%\n"
+                                     f"📈 <b>Checked</b>: {checked_nid_counts[chat_id]} / {total}\n"
+                                     f"📦 <b>Batch Size</b>: {batch_size}\n\n"
+                                     f"⏳ <b>Status</b>: Scanning...\n\n"
+                                     f"BOT BY - kคli liຖนxx",
+                                parse_mode=constants.ParseMode.HTML,
                                 reply_markup=reply_markup
                             )
                     except Exception as e:
@@ -508,14 +500,14 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
                         new_msg = await safe_send(
                             context.bot.send_message,
                             chat_id=chat_id,
-                            text=f"🔍 *Scan In Progress*\n\n"
-                                 f"📚 *Scanning Range*: {start_nid} to {end_nid}\n"
-                                 f"📊 *Progress*: {progress_bar} {progress_percent}%\n"
-                                 f"📈 *Checked*: {checked_nid_counts[chat_id]} / {total}\n"
-                                 f"📦 *Batch Size*: {batch_size}\n\n"
-                                 f"⏳ *Status*: Scanning...\n\n"
-                                 f"BOT BY \\- kคli liຖนxx",
-                            parse_mode=constants.ParseMode.MARKDOWN_V2,
+                            text=f"🔍 <b>Scan In Progress</b>\n\n"
+                                 f"📚 <b>Scanning Range</b>: {start_nid} to {end_nid}\n"
+                                 f"📊 <b>Progress</b>: {progress_bar} {progress_percent}%\n"
+                                 f"📈 <b>Checked</b>: {checked_nid_counts[chat_id]} / {total}\n"
+                                 f"📦 <b>Batch Size</b>: {batch_size}\n\n"
+                                 f"⏳ <b>Status</b>: Scanning...\n\n"
+                                 f"BOT BY - kคli liຖนxx",
+                            parse_mode=constants.ParseMode.HTML,
                             reply_markup=reply_markup
                         )
                         if new_msg:
@@ -529,16 +521,16 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
         await safe_send(
             context.bot.send_message,
             chat_id=chat_id,
-            text="🛑 Scan truly cancelled\\.\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            text="🛑 Scan truly cancelled.\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
     except Exception as e:
         logger.error(f"Error during scan for chat {chat_id}: {e}", exc_info=True)
         await safe_send(
             context.bot.send_message,
             chat_id=chat_id,
-            text=f"❌ An error occurred during the scan: {escape_markdown_v2(str(e))}\n\nBOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            text=f"❌ An error occurred during the scan: {str(e)}\n\nBOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
     finally:
         # Clean up user-specific data regardless of success or failure
@@ -552,14 +544,14 @@ async def perform_search(chat_id, start_nid, end_nid, batch_size, context):
         await safe_send(
             context.bot.send_message,
             chat_id=chat_id,
-            text=f"✅ *Scan Complete*\n\n"
-                 f"📊 *Summary*\n"
-                 f"📚 *Range*: {start_nid} to {end_nid}\n"
-                 f"📈 *Checked*: {final_count} NIDs\n"
-                 f"🏁 *Status*: Completed\n\n"
-                 f"Thank you for using the NID Scanner Bot\\!\n\n"
-                 f"BOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+            text=f"✅ <b>Scan Complete</b>\n\n"
+                 f"📊 <b>Summary</b>\n"
+                 f"📚 <b>Range</b>: {start_nid} to {end_nid}\n"
+                 f"📈 <b>Checked</b>: {final_count} NIDs\n"
+                 f"🏁 <b>Status</b>: Completed\n\n"
+                 f"Thank you for using the NID Scanner Bot!\n\n"
+                 f"BOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
 
 # Callback handler for inline buttons
@@ -581,11 +573,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send(
             context.bot.send_message,
             chat_id=chat_id,
-            text=f"📊 *Current Progress*\n\n"
+            text=f"📊 <b>Current Progress</b>\n\n"
                  f"{progress_bar} {progress_percent}%\n"
-                 f"📈 *Checked*: {current} / {total}\n\n"
-                 f"BOT BY \\- kคli liຖนxx",
-            parse_mode=constants.ParseMode.MARKDOWN_V2
+                 f"📈 <b>Checked</b>: {current} / {total}\n\n"
+                 f"BOT BY - kคli liຖนxx",
+            parse_mode=constants.ParseMode.HTML
         )
     elif data.startswith("cancel_"):
         # Cancel the scan
@@ -595,26 +587,31 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await safe_send(
                 context.bot.send_message,
                 chat_id=chat_id,
-                text="🛑 Scan cancellation requested\\.\n\nBOT BY \\- kคli liຖนxx",
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                text="🛑 Scan cancellation requested.\n\nBOT BY - kคli liຖนxx",
+                parse_mode=constants.ParseMode.HTML
             )
         else:
             await safe_send(
                 context.bot.send_message,
                 chat_id=chat_id,
-                text="ℹ️ No active scan to cancel\\.\n\nBOT BY \\- kคli liຖนxx",
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                text="ℹ️ No active scan to cancel.\n\nBOT BY - kคli liຖนxx",
+                parse_mode=constants.ParseMode.HTML
             )
 
 async def unauthorized_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for unauthorized users trying to use commands."""
     await safe_send(
         update.message.reply_text,
-        "🚫 You are not authorized to use this bot\\.\n"
-        "Please contact the bot owner for access\\.\n\n"
-        "BOT BY \\- kคli liຖนxx",
-        parse_mode=constants.ParseMode.MARKDOWN_V2
+        "🚫 You are not authorized to use this bot.\n"
+        "Please contact the bot owner for access.\n\n"
+        "BOT BY - kคli liຖนxx",
+        parse_mode=constants.ParseMode.HTML
     )
+
+# === AUTHORIZATION MIDDLEWARE ===
+def is_authorized(user_id: int) -> bool:
+    """Check if a user is authorized to use the bot."""
+    return user_id == OWNER_ID or user_id in authorized_users
 
 # === MAIN ===
 def main():
@@ -630,7 +627,7 @@ def main():
     # Create a custom filter class for authorized users
     class AuthorizedFilter(filters.BaseFilter):
         def filter(self, update):
-            return update.effective_user.id == OWNER_ID or update.effective_user.id in authorized_users
+            return is_authorized(update.effective_user.id)
     
     authorized_filter = AuthorizedFilter()
     
