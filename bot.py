@@ -108,12 +108,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<i>BOT BY - kคli liຖนxx</i>"
     )
     
-    await safe_send(
-        update.message.reply_text,
-        welcome_text,
-        parse_mode=constants.ParseMode.HTML,
-        reply_markup=reply_markup
-    )
+    # Check if this is a callback query or a command
+    if update.callback_query:
+        # Edit the existing message
+        await safe_send(
+            update.callback_query.edit_message_text,
+            welcome_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
+    else:
+        # Send a new message
+        await safe_send(
+            update.message.reply_text,
+            welcome_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
 
 @authorized_command_handler
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -149,11 +160,27 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<i>BOT BY - kคli liຖนxx</i>"
     )
     
-    await safe_send(
-        update.message.reply_text,
-        help_text,
-        parse_mode=constants.ParseMode.HTML
-    )
+    # Create a back button
+    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="start")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Check if this is a callback query or a command
+    if update.callback_query:
+        # Edit the existing message
+        await safe_send(
+            update.callback_query.edit_message_text,
+            help_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
+    else:
+        # Send a new message
+        await safe_send(
+            update.message.reply_text,
+            help_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
 
 @authorized_command_handler
 async def listall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -195,11 +222,27 @@ async def listall_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<i>BOT BY - kคli liຖนxx</i>"
     )
     
-    await safe_send(
-        update.message.reply_text,
-        listall_text,
-        parse_mode=constants.ParseMode.HTML
-    )
+    # Create a back button
+    keyboard = [[InlineKeyboardButton("🔙 Back to Main", callback_data="start")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Check if this is a callback query or a command
+    if update.callback_query:
+        # Edit the existing message
+        await safe_send(
+            update.callback_query.edit_message_text,
+            listall_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
+    else:
+        # Send a new message
+        await safe_send(
+            update.message.reply_text,
+            listall_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
 
 @authorized_command_handler
 async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -222,12 +265,23 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<i>BOT BY - kคli liຖนxx</i>"
     )
     
-    await safe_send(
-        update.message.reply_text,
-        admin_text,
-        parse_mode=constants.ParseMode.HTML,
-        reply_markup=reply_markup
-    )
+    # Check if this is a callback query or a command
+    if update.callback_query:
+        # Edit the existing message
+        await safe_send(
+            update.callback_query.edit_message_text,
+            admin_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
+    else:
+        # Send a new message
+        await safe_send(
+            update.message.reply_text,
+            admin_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
 
 @authorized_command_handler
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -247,6 +301,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_id in ongoing_searches and not ongoing_searches[chat_id].done():
         keyboard.append([InlineKeyboardButton("🛑 Cancel Scan", callback_data=f"cancel_{chat_id}")])
     
+    keyboard.append([InlineKeyboardButton("🔙 Back to Main", callback_data="start")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     if chat_id in ongoing_searches and not ongoing_searches[chat_id].done():
@@ -283,12 +338,23 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     status_text += "\n<i>BOT BY - kคli liຖนxx</i>"
     
-    await safe_send(
-        update.message.reply_text,
-        status_text,
-        parse_mode=constants.ParseMode.HTML,
-        reply_markup=reply_markup
-    )
+    # Check if this is a callback query or a command
+    if update.callback_query:
+        # Edit the existing message
+        await safe_send(
+            update.callback_query.edit_message_text,
+            status_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
+    else:
+        # Send a new message
+        await safe_send(
+            update.message.reply_text,
+            status_text,
+            parse_mode=constants.ParseMode.HTML,
+            reply_markup=reply_markup
+        )
 
 @authorized_command_handler
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
